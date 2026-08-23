@@ -1,1 +1,0 @@
-Since the model and messages are passed as object properties to the streamText function, maybe the function also accepts a property for the system prompt.
