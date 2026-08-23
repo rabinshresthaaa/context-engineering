@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LLM Chat: AI SDK, OpenRouter API, HTML, CSS, JS, Vite</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div id="app">
+    <main id="chat-container">
+      <div id="messages-container"></div>
+    </main>
+    <form id="chat-form">
+      <input 
+        type="text" 
+        id="message-input" 
+        placeholder="Type a message..." 
+        autocomplete="off"
+      >
+      <button type="submit" id="send-button" 
+      aria-label="Send message">↑</button>
+    </form>
+  </div>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
