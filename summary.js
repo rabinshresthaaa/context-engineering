@@ -24,33 +24,57 @@ import { generateText } from 'ai';
  * 
  * You need to find the "split point" (an index) where the number of
  * tokens in remainingMessages is within the tokenTarget.
+ * 
+ * 
+ * (Total Tokens = 20,000)
+ * [ M1, M2, M3, M4, M5, M6, M7 ]
+ *
+ * [ M1, M2, M3 ]  [ M4, M5, M6, M7 ]
+ * ^               ^
+ * To Summarize    To Keep (<= 10,000 tokens)
+ * 
+ * LOOP 1: (20,000 > 10,000 is true)
+ * - We are at splitIndex 0.
+ * - Subtract M1's tokens. remainingTokens = 17,000
+ * 
+ * [ M̶1̶ ][ M2 ][ M3 ][ M4 ][ M5 ][ M6 ][ M7 ]
+ *       ^splitIndex = 1
+ * 
+ * LOOP 2: (17,000 > 10,000 is true)
+ * - We are at splitIndex 1.
+ * - Subtract M2's tokens. remainingTokens = 13,000
+ * 
+ * [ M̶1̶ ][ M̶2̶ ][ M3 ][ M4 ][ M5 ][ M6 ][ M7 ]
+ *            ^splitIndex = 2
+ * 
+ * LOOP 3: (13,000 > 10,000 is true)
+ * - We are at splitIndex 2.
+ * - Subtract M3's tokens. remainingTokens = 9,500
+ * 
+ * [ M̶1̶ ][ M̶2̶ ][ M̶3̶ ][ M4 ][ M5 ][ M6 ][ M7 ]
+ *                   ^splitIndex = 3
+ * 
+ * LOOP 4: (9,500 > 10,000 is false)
+ * STOP
+ *
+ * The final 'splitIndex' is 3.
+ * 
  */
 export function splitForSummary(messages, tokenTarget) {
-  // Your implementation here
-  const totalTokens = getTotalTokenCount(messages);
-  if (totalTokens <= tokenTarget) {
-    return {
-      messagesToSummarize: [],
-      remainingMessages: messages
-    };
-  }
-  
-  let splitIndex = messages.length;
-  let remainingTokens = totalTokens;
+  let remainingTokens = getTotalTokenCount(messages);
+  let splitIndex = 0;
 
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const messageTokens = getMessageTokenCount(messages[i]);
-    if (remainingTokens - messageTokens <= tokenTarget) {
-      remainingTokens -= messageTokens;
-      splitIndex = i;
-      break;
-    }
-    remainingTokens -= messageTokens;
+  while (remainingTokens > tokenTarget && splitIndex < messages.length - 1) {
+    remainingTokens -= getMessageTokenCount(messages[splitIndex]);
+    splitIndex++;
   }
+
+  const messagesToSummarize = messages.slice(0, splitIndex);
+  const remainingMessages = messages.slice(splitIndex);
   
   return {
-    messagesToSummarize: messages.slice(0, splitIndex),
-    remainingMessages: messages.slice(splitIndex)
+    messagesToSummarize,
+    remainingMessages
   };
 }
 
@@ -66,23 +90,25 @@ export function splitForSummary(messages, tokenTarget) {
  * Return a final message object containing the summary.
  */
 export async function generateSummary(messages, model) {
-  // Your implementation here
+  const summaryPrompt = {
+    role: 'user',
+    content: `Create a summary of the conversation so far to preserve
+    important context. Focusing on key user information, important 
+    decisions, and technical details that might be referenced later.` 
+  }
 
-  const summaryPrompt = `You are an expert at summarizing conversations to preserve important context. Focus on extracting key user information, important decisions, and technical details that might be referenced later. Create a concise, well-organized summary.`;
-
-  const summaryMessage = [ ...messages ]
-  
-  summaryMessage.push({
-    role: "user",
-    content: summaryPrompt
-  });
+  const summaryMessages = [ ...messages ];
+  summaryMessages.push(summaryPrompt);
 
   const response = await generateText({
-    model: model,
-    messages: summaryMessage,
-  });
+    model,
+    system: `You are an expert at summarizing AI conversations to preserve
+    important context for future messages. When asked to summarize, do not
+    generate any preamble or conclusion. Only output a summary.`,
+    messages: summaryMessages
+  })
 
-  const summaryContent = response.text;
+  const summaryContent = response.text
 
   return { 
     role: "system", 
